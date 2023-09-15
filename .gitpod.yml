@@ -1,0 +1,8 @@
+tasks:
+  - before: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  - init: yarn install -cwd ./addons/vscode && yarn install -cwd ./addons/frontend
+
+vscode:
+  extensions:
+    - rust-lang.rust-analyzer
+    - dbaeumer.vscode-eslint
