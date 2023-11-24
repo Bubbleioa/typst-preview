@@ -23,7 +23,7 @@
     // },
   
     // Use 'postCreateCommand' to run commands after the container is created.
-    "postCreateCommand": "yarn --cwd install ./addons/vscode && yarn --cwd install ./addons/frontend",
+    "postCreateCommand": "yarn --cwd ./addons/vscode install && yarn --cwd ./addons/frontend install",
   
     // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
     // "remoteUser": "root",
