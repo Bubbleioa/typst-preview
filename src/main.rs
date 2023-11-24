@@ -7,25 +7,19 @@ use hyper::http::Error;
 use hyper::service::{make_service_fn, service_fn};
 use log::{error, info};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use tokio_tungstenite::tungstenite::Message;
 
-use typst::geom::Point;
-
-use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use tokio::net::{TcpListener, TcpStream};
-use typst::doc::{Frame, FrameItem, Position};
 
 use crate::actor::editor::EditorActor;
 use crate::actor::typst::TypstActor;
-use crate::args::CliArguments;
+use crate::args::{CliArguments, PreviewMode};
 
 use tokio_tungstenite::WebSocketStream;
-
-use typst::syntax::{LinkedNode, Source, Span, SyntaxKind};
 
 use typst_ts_compiler::service::CompileDriver;
 use typst_ts_compiler::TypstSystemWorld;
@@ -72,25 +66,15 @@ impl CompileSettings {
     }
 }
 
-#[derive(Debug, Serialize)]
-pub struct DocToSrcJumpInfo {
-    filepath: String,
-    start: Option<(usize, usize)>, // row, column
-    end: Option<(usize, usize)>,
-}
+pub use typst_ts_compiler::service::DocToSrcJumpInfo;
 
-impl DocToSrcJumpInfo {
-    pub fn from_option(
-        filepath: String,
-        start: (Option<usize>, Option<usize>),
-        end: (Option<usize>, Option<usize>),
-    ) -> Self {
-        Self {
-            filepath,
-            start: start.0.zip(start.1),
-            end: end.0.zip(end.1),
-        }
-    }
+#[derive(Debug, Deserialize)]
+pub struct ChangeCursorPositionRequest {
+    filepath: PathBuf,
+    line: usize,
+    /// fixme: character is 0-based, UTF-16 code unit.
+    /// We treat it as UTF-8 now.
+    character: usize,
 }
 
 // JSON.stringify({
@@ -101,7 +85,7 @@ impl DocToSrcJumpInfo {
 // 	})
 #[derive(Debug, Deserialize)]
 pub struct SrcToDocJumpRequest {
-    filepath: String,
+    filepath: PathBuf,
     line: usize,
     /// fixme: character is 0-based, UTF-16 code unit.
     /// We treat it as UTF-8 now.
@@ -116,14 +100,16 @@ impl SrcToDocJumpRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct MemoryFiles {
-    files: HashMap<String, String>,
+    files: HashMap<PathBuf, String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct MemoryFilesShort {
-    files: Vec<String>,
+    files: Vec<PathBuf>,
+    // mtime: Option<u64>,
 }
 
+/// If this file is not found, please refer to https://enter-tainer.github.io/typst-preview/dev.html to build the frontend.
 const HTML: &str = include_str!("../addons/vscode/out/frontend/index.html");
 
 /// Entry point.
@@ -133,6 +119,12 @@ async fn main() {
         // TODO: set this back to Info
         .filter_module("typst_preview", log::LevelFilter::Debug)
         .filter_module("typst_ts", log::LevelFilter::Info)
+        // TODO: set this back to Info
+        .filter_module(
+            "typst_ts_compiler::service::compile",
+            log::LevelFilter::Debug,
+        )
+        .filter_module("typst_ts_compiler::service::watch", log::LevelFilter::Debug)
         .try_init();
     let arguments = CliArguments::parse();
     info!("Arguments: {:#?}", arguments);
@@ -179,22 +171,19 @@ async fn main() {
         typst_mailbox,
         doc_watch,
         renderer_mailbox,
-        doc_to_src_jump,
-        src_to_doc_jump,
+        editor_conn,
+        webview_conn,
     } = TypstActor::set_up_channels();
     let typst_actor = TypstActor::new(
         compiler_driver,
         typst_mailbox.1,
-        typst_mailbox.0.clone(),
         doc_watch.0,
         renderer_mailbox.0.clone(),
-        doc_to_src_jump.0,
-        src_to_doc_jump.0.clone(),
+        editor_conn.0.clone(),
+        webview_conn.0.clone(),
     );
 
-    std::thread::spawn(move || {
-        typst_actor.run();
-    });
+    tokio::spawn(typst_actor.run());
 
     let (data_plane_port_tx, data_plane_port_rx) = tokio::sync::oneshot::channel();
     let data_plane_addr = arguments.data_plane_host;
@@ -211,7 +200,7 @@ async fn main() {
             );
             let _ = data_plane_port_tx.send(listener.local_addr().unwrap().port());
             while let Ok((stream, _)) = listener.accept().await {
-                let src_to_doc_rx = src_to_doc_jump.0.subscribe();
+                let src_to_doc_rx = webview_conn.0.subscribe();
                 let typst_tx = typst_tx.clone();
                 let doc_watch_rx = doc_watch_rx.clone();
                 let mut conn = accept_connection(stream).await;
@@ -220,30 +209,57 @@ async fn main() {
                         .await
                         .unwrap();
                 }
-                let actor::webview::Channels { svg, render_full } =
-                    actor::webview::WebviewActor::set_up_channels();
+                let actor::webview::Channels {
+                    svg,
+                    mut outline,
+                    render_full,
+                    render_outline,
+                } = actor::webview::WebviewActor::set_up_channels();
                 let render_tx = render_full.0.clone();
+                let render_outline_tx = render_outline.0.clone();
                 let webview_actor = actor::webview::WebviewActor::new(
                     conn,
                     svg.1,
                     src_to_doc_rx,
                     typst_tx,
                     render_full.0,
+                    render_outline_tx,
                 );
                 tokio::spawn(async move {
                     webview_actor.run().await;
                 });
                 let render_actor =
-                    actor::render::RenderActor::new(render_full.1, doc_watch_rx, svg.0);
+                    actor::render::RenderActor::new(render_full.1, doc_watch_rx.clone(), svg.0);
                 std::thread::spawn(move || {
                     render_actor.run();
                 });
+                let outline_render_actor = actor::render::OutlineRenderActor::new(
+                    render_outline.1,
+                    doc_watch_rx,
+                    outline.0,
+                );
+                std::thread::spawn(move || {
+                    outline_render_actor.run();
+                });
                 let mut renderer_rx = renderer_mailbox.0.subscribe();
+                let renderer_outline_rx = render_outline.0;
                 tokio::spawn(async move {
                     while let Ok(msg) = renderer_rx.recv().await {
                         let Ok(_) = render_tx.send(msg) else {
                             break;
                         };
+                        let Ok(_) = renderer_outline_rx.send(()) else {
+                            break;
+                        };
+                    }
+                });
+
+                let editor_tx = editor_conn.0.clone();
+                tokio::spawn(async move {
+                    while let Some(msg) = outline.1.recv().await {
+                        editor_tx
+                            .send(actor::editor::EditorActorRequest::Outline(msg))
+                            .unwrap();
                     }
                 });
             }
@@ -253,7 +269,7 @@ async fn main() {
     let control_plane_addr = arguments.control_plane_host;
     let control_plane_handle = {
         let typst_tx = typst_mailbox.0.clone();
-        let editor_rx = doc_to_src_jump.1;
+        let editor_rx = editor_conn.1;
         tokio::spawn(async move {
             let try_socket = TcpListener::bind(&control_plane_addr).await;
             let listener = try_socket.expect("Failed to bind");
@@ -270,7 +286,6 @@ async fn main() {
     let static_file_addr = arguments.static_file_host;
     let data_plane_port = data_plane_port_rx.await.unwrap();
     let make_service = make_service_fn(|_| {
-        let data_plane_port = data_plane_port;
         async move {
             Ok::<_, hyper::http::Error>(service_fn(move |req| {
                 async move {
@@ -279,6 +294,16 @@ async fn main() {
                             "ws://127.0.0.1:23625",
                             format!("ws://127.0.0.1:{data_plane_port}").as_str(),
                         );
+                        // previewMode
+                        let mode = match arguments.preview_mode {
+                            PreviewMode::Document => "Doc",
+                            PreviewMode::Slide => "Slide",
+                        };
+                        let html = html.replace(
+                            "preview-arg:previewMode:Doc",
+                            format!("preview-arg:previewMode:{}", mode).as_str(),
+                        );
+                        log::info!("Preview mode: {}", mode);
                         Ok::<_, Error>(hyper::Response::new(hyper::Body::from(html)))
                     } else {
                         // jump to /
@@ -358,71 +383,3 @@ pub static EMBEDDED_FONT: &[Cow<'_, [u8]>] = &[
     #[cfg(feature = "embedded-emoji-fonts")]
     Cow::Borrowed(include_bytes!("../assets/fonts/NotoColorEmoji.ttf").as_slice()),
 ];
-
-/// Find the output location in the document for a cursor position.
-pub fn jump_from_cursor(frames: &[Frame], source: &Source, cursor: usize) -> Option<Position> {
-    let node = LinkedNode::new(source.root()).leaf_at(cursor)?;
-    if node.kind() != SyntaxKind::Text {
-        return None;
-    }
-
-    info!("jump_from_cursor: {:?} {:?}", node, node.span());
-
-    let mut min_dis = u64::MAX;
-    let mut p = Point::default();
-    let mut ppage = 0usize;
-
-    let span = node.span();
-    for (i, frame) in frames.iter().enumerate() {
-        let t_dis = min_dis;
-        if let Some(pos) = find_in_frame(frame, span, &mut min_dis, &mut p) {
-            return Some(Position {
-                page: NonZeroUsize::new(i + 1).unwrap(),
-                point: pos,
-            });
-        }
-        if t_dis != min_dis {
-            ppage = i;
-        }
-        info!("min_dis: {} {:?} {:?}", min_dis, ppage, p);
-    }
-
-    if min_dis == u64::MAX {
-        return None;
-    }
-
-    Some(Position {
-        page: NonZeroUsize::new(ppage + 1).unwrap(),
-        point: p,
-    })
-}
-
-/// Find the position of a span in a frame.
-fn find_in_frame(frame: &Frame, span: Span, min_dis: &mut u64, p: &mut Point) -> Option<Point> {
-    for (mut pos, item) in frame.items() {
-        if let FrameItem::Group(group) = item {
-            // TODO: Handle transformation.
-            if let Some(point) = find_in_frame(&group.frame, span, min_dis, p) {
-                return Some(point + pos);
-            }
-        }
-
-        if let FrameItem::Text(text) = item {
-            for glyph in &text.glyphs {
-                if glyph.span.0 == span {
-                    return Some(pos);
-                }
-                if glyph.span.0.id() == span.id() {
-                    let dis = glyph.span.0.number().abs_diff(span.number());
-                    if dis < *min_dis {
-                        *min_dis = dis;
-                        *p = pos;
-                    }
-                }
-                pos.x += glyph.x_advance.at(text.size);
-            }
-        }
-    }
-
-    None
-}

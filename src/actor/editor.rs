@@ -6,13 +6,23 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 
 use crate::{
-    actor::typst::TypstActorRequest, DocToSrcJumpInfo, MemoryFiles, MemoryFilesShort,
-    SrcToDocJumpRequest,
+    actor::outline::Outline, actor::typst::TypstActorRequest, ChangeCursorPositionRequest,
+    DocToSrcJumpInfo, MemoryFiles, MemoryFilesShort, SrcToDocJumpRequest,
 };
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "data")]
+pub enum CompileStatus {
+    Compiling,
+    CompileSuccess,
+    CompileError,
+}
 
 #[derive(Debug)]
 pub enum EditorActorRequest {
     DocToSrcJump(DocToSrcJumpInfo),
+    Outline(Outline),
+    CompileStatus(CompileStatus),
 }
 
 pub struct EditorActor {
@@ -25,6 +35,8 @@ pub struct EditorActor {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "event")]
 enum ControlPlaneMessage {
+    #[serde(rename = "changeCursorPosition")]
+    ChangeCursorPosition(ChangeCursorPositionRequest),
     #[serde(rename = "panelScrollTo")]
     SrcToDocJump(SrcToDocJumpRequest),
     #[serde(rename = "syncMemoryFiles")]
@@ -42,6 +54,10 @@ enum ControlPlaneResponse {
     EditorScrollTo(DocToSrcJumpInfo),
     #[serde(rename = "syncEditorChanges")]
     SyncEditorChanges(()),
+    #[serde(rename = "compileStatus")]
+    CompileStatus(CompileStatus),
+    #[serde(rename = "outline")]
+    Outline(Outline),
 }
 
 impl EditorActor {
@@ -76,6 +92,22 @@ impl EditorActor {
                                 warn!("EditorActor: failed to send DocToSrcJump message to editor");
                                 break;
                             };
+                        },
+                        EditorActorRequest::CompileStatus(status) => {
+                            let Ok(_) = self.editor_websocket_conn.send(Message::Text(
+                                serde_json::to_string(&ControlPlaneResponse::CompileStatus(status)).unwrap(),
+                            )).await else {
+                                warn!("EditorActor: failed to send CompileStatus message to editor");
+                                break;
+                            };
+                        },
+                        EditorActorRequest::Outline(outline) => {
+                            let Ok(_) = self.editor_websocket_conn.send(Message::Text(
+                                serde_json::to_string(&ControlPlaneResponse::Outline(outline)).unwrap(),
+                            )).await else {
+                                warn!("EditorActor: failed to send Outline message to editor");
+                                break;
+                            };
                         }
                     }
                 }
@@ -85,6 +117,10 @@ impl EditorActor {
                         continue;
                     };
                     match msg {
+                        ControlPlaneMessage::ChangeCursorPosition(cursor_info) => {
+                            debug!("EditorActor: received message from editor: {:?}", cursor_info);
+                            self.world_sender.send(TypstActorRequest::ChangeCursorPosition(cursor_info))
+                        }
                         ControlPlaneMessage::SrcToDocJump(jump_info) => {
                             debug!("EditorActor: received message from editor: {:?}", jump_info);
                             self.world_sender.send(TypstActorRequest::SrcToDocJumpResolve(jump_info))

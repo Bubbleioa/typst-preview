@@ -8,7 +8,7 @@
     "type": "git",
     "url": "https://github.com/Enter-tainer/typst-preview"
   },
-  "version": "0.7.5",
+  "version": "0.9.2",
   "engines": {
     "vscode": "^1.77.0"
   },
@@ -18,6 +18,15 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "icons": {
+      "typst-guy": {
+        "description": "typst guy",
+        "default": {
+          "fontPath": "./preview.woff",
+          "fontCharacter": "A"
+        }
+      }
+    },
     "languages": [
       {
         "id": "typst",
@@ -42,11 +51,32 @@
         "when": "resourceLangId == typst && editorTextFocus"
       },
       {
+        "command": "typst-preview.preview-slide",
+        "title": "Typst Preview: Preview current file in slide mode",
+        "description": "Launch typst-preview server in slide mode",
+        "icon": "$(open-preview)",
+        "when": "resourceLangId == typst && editorTextFocus"
+      },
+      {
+        "command": "typst-preview.browser-slide",
+        "title": "Typst Preview: Preview current file in browser and slide mode",
+        "description": "Launch typst-preview server in slide mode and open the preview in your browser",
+        "icon": "$(open-preview)",
+        "when": "resourceLangId == typst && editorTextFocus"
+      },
+      {
         "command": "typst-preview.sync",
         "title": "Typst Preview: Sync preview with current cursor",
         "description": "Scroll preview to current cursor position",
         "icon": "$(sync)",
         "when": "resourceLangId == typst && editorTextFocus"
+      },
+      {
+        "command": "typst-preview.showLog",
+        "title": "Typst Preview: Show Log",
+        "description": "Show typst-preview log",
+        "icon": "$(list-flat)",
+        "when": "resourceLangId == typst"
       }
     ],
     "menus": {
@@ -55,6 +85,30 @@
           "command": "typst-preview.preview",
           "when": "resourceLangId == typst && editorTextFocus",
           "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "typst-preview-activitybar",
+          "title": "Typst Preview",
+          "icon": "./icons/activity-bar.svg"
+        }
+      ]
+    },
+    "views": {
+      "typst-preview-activitybar": [
+        {
+          "id": "typst-preview.content-preview",
+          "type": "webview",
+          "name": "Content",
+          "when": "config.typst-preview.showInActivityBar"
+        },
+        {
+          "id": "typst-preview.outline",
+          "name": "Outline",
+          "when": "config.typst-preview.showInActivityBar"
         }
       ]
     },
@@ -107,14 +161,46 @@
           "description": "Only render visible part of the document. This can improve performance but still being experimental.",
           "type": "boolean",
           "default": true
+        },
+        "typst-preview.cursorIndicator": {
+          "description": "(Experimental) Show typst cursor indicator in preview.",
+          "type": "boolean",
+          "default": false
+        },
+        "typst-preview.showInActivityBar": {
+          "description": "(Experimental) Show a preview panel in activity bar.",
+          "type": "boolean",
+          "default": false
+        },
+        "typst-preview.statusBarIndicator": {
+          "description": "Style of status bar indicator for typst-preview.",
+          "type": "string",
+          "enum": [
+            "full",
+            "compact"
+          ],
+          "default": "compact",
+          "enumDescriptions": [
+            "Show full status bar indicator (ICON Compile Success)",
+            "Show compact status bar indicator (ICON)"
+          ]
         }
       }
-    }
+    },
+    "keybindings": [
+      {
+        "command": "typst-preview.preview",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorLangId == typst"
+      }
+    ]
   },
   "scripts": {
     "build:frontend": "cd ../frontend && yarn run build && cd ../vscode && rimraf ./out/frontend/ && cpr ../frontend/dist/ ./out/frontend/",
     "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./ && yarn run build:frontend",
+    "build": "yarn run compile",
     "watch": "tsc -watch -p ./",
     "pretest": "yarn run compile && yarn run lint",
     "package": "vsce package",
@@ -122,6 +208,7 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
+    "typst-preview-frontend": "../frontend",
     "@types/cross-spawn": "^6.0.2",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",

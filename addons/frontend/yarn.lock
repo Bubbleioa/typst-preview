@@ -117,20 +117,15 @@
   resolved "https://registry.yarnpkg.com/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.4.15.tgz#d7c6e6755c78567a951e04ab52ef0fd26de59f32"
   integrity sha512-eF2rxCRulEKXHTRiDrDy6erMYWqNw4LPdQ8UQA4huuxaQsVeRPFl2oM8oDGxMFhJUWZf9McpLtJasDDZb/Bpeg==
 
-"@myriaddreamin/typst-ts-renderer@0.4.0-rc2":
-  version "0.4.0-rc2"
-  resolved "https://registry.yarnpkg.com/@myriaddreamin/typst-ts-renderer/-/typst-ts-renderer-0.4.0-rc2.tgz#bc074fe3c5dbc75c777a18db7a037aa9b29d12a2"
-  integrity sha512-eetesS/1KBu11/3tSg8iSp5dx8E4KzRgxf0iLwUGJ41G80ZOvhA32+QBcEA/gpUPDBmL3bXHB4lPoigV1JYNXg==
+"@myriaddreamin/typst-ts-renderer@0.4.0-rc11":
+  version "0.4.0-rc11"
+  resolved "https://registry.yarnpkg.com/@myriaddreamin/typst-ts-renderer/-/typst-ts-renderer-0.4.0-rc11.tgz#ec035cb57729ab5605e21e0904e4f81e195ed526"
+  integrity sha512-lriBDqej+HmahjDydaSuBS+ntpZ5yVanGnfy49G1n19u/79RStj8E+V1nQcLEq1yu36OG6y0QmXOKXTuo2XlPQ==
 
-"@myriaddreamin/typst-ts-web-compiler@0.4.0-rc2":
-  version "0.4.0-rc2"
-  resolved "https://registry.yarnpkg.com/@myriaddreamin/typst-ts-web-compiler/-/typst-ts-web-compiler-0.4.0-rc2.tgz#0ad6f02f932927e42570618b68ccad244137830e"
-  integrity sha512-YrVLN0Pk6INRBndDasXh7iyF0YnNogzy3LjAK4NSOVh7CdfjptPJwBNQlBonJ3Av0ne//oHr5H44ADRPdnOPmQ==
-
-"@myriaddreamin/typst.ts@0.4.0-rc2":
-  version "0.4.0-rc2"
-  resolved "https://registry.yarnpkg.com/@myriaddreamin/typst.ts/-/typst.ts-0.4.0-rc2.tgz#0a22a927e252a4588ba359f5161efb72cb8cccd0"
-  integrity sha512-kJPMIcYGg19s6EH93oEgBAeEQbUlDCNJrhQycE/pWXyTUbJnPSYCBPr3YkWfkMpbufMtFZqMqIFRVoH7uLltAw==
+"@myriaddreamin/typst.ts@0.4.0-rc11":
+  version "0.4.0-rc11"
+  resolved "https://registry.yarnpkg.com/@myriaddreamin/typst.ts/-/typst.ts-0.4.0-rc11.tgz#6929a7c31a4f5ce4b9dfa8189487fa0b6c8b3a12"
+  integrity sha512-DzGsMYOnTlk/C4CCjQy9NOcLRwFxWS8zL12JiGQWjy0kHd0XJTBWdqNX2Mce9ITHqBJ9kUKk0kyFTEgaqrPI9Q==
   dependencies:
     idb "^7.1.1"
 
@@ -502,6 +497,13 @@ rollup@^3.21.0:
   optionalDependencies:
     fsevents "~2.3.2"
 
+rxjs@^7.8.1:
+  version "7.8.1"
+  resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-7.8.1.tgz#6f6f3d99ea8044291efd92e7c7fcf562c4057543"
+  integrity sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==
+  dependencies:
+    tslib "^2.1.0"
+
 semver@^7.3.2:
   version "7.5.2"
   resolved "https://registry.yarnpkg.com/semver/-/semver-7.5.2.tgz#5b851e66d1be07c1cdaf37dfc856f543325a2beb"
@@ -562,6 +564,11 @@ to-regex-range@^5.0.1:
   integrity sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==
   dependencies:
     is-number "^7.0.0"
+
+tslib@^2.1.0:
+  version "2.6.2"
+  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.6.2.tgz#703ac29425e7b37cd6fd456e92404d46d1f3e4ae"
+  integrity sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==
 
 type-detect@^4.0.0, type-detect@^4.0.5:
   version "4.0.8"

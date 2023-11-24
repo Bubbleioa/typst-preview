@@ -10,6 +10,8 @@ Preview your Typst files in vscode instantly!
 
 Install this extension from [marketplace](https://marketplace.visualstudio.com/items?itemName=mgt19937.typst-preview), open command palette (Ctrl+Shift+P), and type `>Typst Preview:`.
 
+You can also use the shortcut (Ctrl+K V).
+
 ![demo](demo.png)
 
 https://github.com/Enter-tainer/typst-preview/assets/25521218/600529ce-8f42-4c2f-a224-b6b73e6ad017
@@ -168,5 +170,73 @@ Add preview button
 - 
 ### v0.7.5
 
-= Fix #107: now VSCode variables like `${workspaceFolder}` can be used in `typst-preview.fontPaths`.
+- Fix #107: now VSCode variables like `${workspaceFolder}` can be used in `typst-preview.fontPaths`.
 - Fix cannot open multiple preview tabs at the same time.
+
+### v0.8.0
+
+- Upgrade to typst v0.8.0
+- Fix #111: Previously stroke related attributes are not rendered correctly. This is now fixed.
+- Fix #105: The compiler will panic randomly. This is now fixed.
+- Upstream bug fixes: https://github.com/Myriad-Dreamin/typst.ts/releases/tag/v0.4.0-rc3
+
+### v0.8.1
+
+- Bug fixes:
+  - #121: Disable darkreader for preview panel. This should fix the problem where the preview panel is invisible when darkreader is installed in the browser.
+  - #123: Fix a VDOM bug which may cause color/clip-path desync.
+  - #124: Fix a race condition which may cause the webview process messages out of order, resulting in blank screen.
+  - #125: Resizing the preview panel is not that laggy now.
+- Features:
+  - #120: We now show page breaks and center pages horizontally. By default we will choose the `vscode-sideBar-background` color as the page break color. If it is not distinguishable from white, we will use `rgb(82, 86, 89)` instead. 
+
+### v0.8.2
+
+- Features:
+  - #142 The scroll position of the preview panel is now preserved when you switch between tabs.
+  - #133 We now provide a button to show log when the server crashes. This should make debugging easier. You may also use the command `typst-preview.showLog` to show the log.
+  - #129 A `--version` flag is now provided in the cli
+
+- Bug fixes:
+  - #137 Previously preview page might go blank when saving the file
+  - #130 Previously you cannot watch a file in `/tmp`
+  - #118 Previously the preview page might flash when you save the file
+
+### v0.8.3
+
+- Bug fixes:
+  - #152 Do not pop up error message when the preview window is closed
+  - #156 Fix shaking scrollbar/border
+  - #161 #151 Should not panic when the file is not exist
+
+- Features:
+  - #157 Add a rough indicator for the current cursor position in the preview panel. You may enable this in configuration.
+
+### v0.9.0
+
+- Features:
+  - Update to typst v0.9.0
+  - Add a status indicator in status bar. When compile fails, it becomes red. Clicking on it will show the error message.
+
+- Bug fixes:
+  - #143 Scrolling is not that laggy now
+  - #159 Fix a clip path bug
+
+### v0.9.1
+
+- Features:
+  - #160: Slides mode is available now! You can enable use `typst-preview.preview-slide` command.
+  - Allow adjust the status bar item
+
+- Bug fixes:
+  - Previously the `Compiling` status is never sent to the status bar item. This is now fixed.
+  - #183 #128 Various rendering fix.
+
+### v0.9.2
+
+- Features:
+  - You can now enable a preview panel in the sidebar. See `typst-preview.showInActivityBar`.
+  - A new keybinding is added. You can trigger preview by using `Ctrl`/`Cmd` + `k` `v` now.
+
+- Bug fix:
+  - Scroll to cursor on 2-column documents is now improved.
