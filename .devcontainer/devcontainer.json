@@ -6,7 +6,11 @@
       // Configure properties specific to VS Code.
       "vscode": {
         "settings": {},
-        "extensions": ["rust-lang.rust-analyzer", "dbaeumer.vscode-eslint"]
+        "extensions": [
+			"rust-lang.rust-analyzer",
+			"dbaeumer.vscode-eslint",
+			"nvarner.typst-lsp"
+		]
       }
     },
   
